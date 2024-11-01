@@ -48,7 +48,8 @@ def runContainer(model: CreateBuildRequest):
             detach= True,
             environment= {
                 "REPO_LINK" : model.repoLink,
-            }
+            },
+            auto_remove=False
         )
         return {
             "message" : "container started succefully",

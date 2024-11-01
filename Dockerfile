@@ -8,6 +8,8 @@ ENV JKS_NAME=ishfaq.jks
 ENV SCRIPT=build.sh
 ENV REPO_LINK="https://github.com/developwithishfaq/mon"
 
+RUN mkdir -p ./jks ./scripts ./code
+
 COPY ./data/keys/$JKS_NAME ./jks/
 
 COPY ./data/scripts/$SCRIPT ./scripts/
@@ -15,6 +17,6 @@ COPY ./data/scripts/$SCRIPT ./scripts/
 # Make the script executable
 RUN chmod +x ./scripts/$SCRIPT
 
-ENTRYPOINT ["/bin/sh", "-c", "./scripts/$SCRIPT"]
 
-CMD [ "/bin/bash" ]
+
+ENTRYPOINT ["/bin/sh", "-c", "./scripts/$SCRIPT"]
