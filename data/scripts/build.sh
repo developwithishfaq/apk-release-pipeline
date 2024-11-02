@@ -18,6 +18,7 @@ mkdir -p $CODE_DIR $OUTPUT_DIR
 cd $CODE_DIR
 git clone $REPO_LINK .
 chmod +x gradlew
+# yes | sdkmanager --licenses
 
 # Display signing information for debugging
 echo "Building project with JKS Path: $JKS_PATH"
@@ -81,3 +82,15 @@ if [ -d "app/build/outputs/bundle/release" ]; then
 else
     echo "AAB output directory not found."
 fi
+
+
+# docker run --rm -v "$(pwd)/Apks:/data/apks" test
+# docker run --rm -v "$(pwd)/Apks:/data/apks" -v "$(pwd)/gradle_cache:/root/.gradle" -v "$(pwd)/android_sdk:/opt/android-sdk" test
+# docker run --rm -v "$(pwd)/android_sdk:/opt/android-sdk" -it test /bin/bash -c "\
+    #  yes | sdkmanager --licenses --sdk_root=/opt/android-sdk"
+
+# Final
+# docker run --rm -v "$(pwd)/Apks:/data/apks" -v "$(pwd)/gradle_cache:/root/.gradle" -v "$(pwd)/android_sdk:/opt/android-sdk" test /bin/bash -c "yes | sdkmanager --licenses --sdk_root=/opt/android-sdk && ./scripts/build.sh"
+
+
+# docker run --rm -v "$(pwd)/Apks:/data/apks" -v "$(pwd)/gradle_cache:/root/.gradle" test

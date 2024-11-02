@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
 # Set environment variables
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 ENV PATH="$JAVA_HOME/bin:$PATH"
+ENV PROJECT_NAME="ishfaq"
 
 # Define Android SDK root
 ENV ANDROID_HOME=/opt/android-sdk
