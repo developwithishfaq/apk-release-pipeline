@@ -1,10 +1,14 @@
-from fastapi import FastAPI,HTTPException,WebSocket
+from fastapi import FastAPI,HTTPException,WebSocket,BackgroundTasks,Query
 from pydantic import BaseModel
 import subprocess
 import docker
 import os
+import threading
+from typing import List,Dict,Optional
 
 app = FastAPI()
+
+all_logs : Dict[str,str] = {} 
 
 client = docker.from_env()
 
@@ -12,44 +16,59 @@ client = docker.from_env()
 class CreateBuildRequest(BaseModel):
     jksName: str
     repoLink: str
-
-
-@app.post("/buildImage")
-def buildImage():
-    try:
-        # Ensure the Dockerfile is in the current working directory
-        if not os.path.exists('Dockerfile'):
-            raise HTTPException(status_code=404, detail="Dockerfile not found")
-
-        # Build the Docker image
-        image, build_logs = client.images.build(path=".", tag="test")
-
-        # Optionally, print build logs
-        for log in build_logs:
-            if 'stream' in log:
-                print(log['stream'].strip())
-
-        return {
-            "message": f"Image built successfully.",
-            "image_id": image.id
-        }
-    except docker.errors.BuildError as e:
-        raise HTTPException(status_code=500, detail=f"Error building image: {str(e)}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+    branchName : Optional[str] = None
+    accessToken : Optional[str] = None
+    bitbuckerUserName : Optional[str] = None
+    bitbuckerAppPassword : Optional[str] = None
+    bitbuckerOAuthToken : Optional[str] = None
 
 @app.post("/run")
-def runContainer(model: CreateBuildRequest):
+async def runContainer(background_tasks: BackgroundTasks,model: CreateBuildRequest):
+    projectName = getProjectName(model.repoLink)
+    all_logs[projectName] = ""
+    jksModel : JksModel = getJksModelByName(model.jksName)
+
+    host_volume_path = os.path.join(os.getcwd(), f"Apks/{projectName}")
+    container_volume_path = "/data/apks"
     try:
-        container = client.containers.run(
-            "test",
-            name= "Hathi",
-            detach= True,
-            environment= {
+        if 'bitbucket.org' in model.repoLink:
+            imageName = "bitbucket"
+            env = {
                 "REPO_LINK" : model.repoLink,
+                "JKS_NAME" : jksModel.path,
+                "KEYSTORE_PASSWORD" : jksModel.storePass,
+                "KEY_ALIAS" : jksModel.keyAlias,
+                "KEY_PASSWORD" : jksModel.keyPass,
+                "BRANCH_NAME" : model.branchName,
+                "BITBUCKET_USERNAME": model.bitbuckerUserName,
+                "BITBUCKET_APP_PASSWORD": model.bitbuckerAppPassword,
+                "BITBUCKET_OAUTH_TOKEN" : model.bitbuckerOAuthToken
+            }
+        else:
+            imageName = "github"
+            env = {
+                "REPO_LINK" : model.repoLink,
+                "JKS_NAME" : jksModel.path,
+                "KEYSTORE_PASSWORD" : jksModel.storePass,
+                "KEY_ALIAS" : jksModel.keyAlias,
+                "KEY_PASSWORD" : jksModel.keyPass,
+                "BRANCH_NAME" : model.branchName,
+                "ACCESS_TOKEN" : model.accessToken
+            }
+        container = client.containers.run(
+            image=imageName,
+            name= projectName,
+            detach= True,
+            environment = env,
+            volumes={
+                host_volume_path: {
+                    "bind": container_volume_path,
+                    "mode": "rw"  # "rw" for read-write access; "ro" if you need it read-only
+                }
             }
         )
+        container_id = container.id
+        threading.Thread(target=consume_logs, args=(container_id,projectName), daemon=True).start()
         return {
             "message" : "container started succefully",
             "id" : container.id
@@ -58,33 +77,60 @@ def runContainer(model: CreateBuildRequest):
         return {
             "error" : str(e)
         }
+    
 
-@app.websocket("/logs/{container_name}")
-async def log_websocket(websocket: WebSocket, container_name: str):
-    await websocket.accept()
+def consume_logs(container_id: str,projectName: str):
     try:
-        container = client.containers.get(container_name)
-        logs_generator = container.logs(stream=True, follow=True)
-        for log in logs_generator:
-            await websocket.send_text(log.decode('utf-8').strip())
-    except docker.errors.NotFound:
-        await websocket.close(code=1003)  # Close with "not found" code
-    except Exception as e:
-        await websocket.close(code=1000)  # Close with normal code
+        container = client.containers.get(container_id)
+        for log_line in container.logs(stream=True):
+            # Process each log line (e.g., save to a database, print, etc.)
+            logLine = log_line.decode("utf-8")
+            all_logs[projectName] +=logLine
+            # print(f"{logLine}")
+    finally:
+        # Optionally clean up the container
+        container.remove(force=True)
+    
+@app.get("/logs")
+def getLogs(projectName: str = Query()):
+    if projectName in all_logs:
+        logs = all_logs[projectName]
+        return {
+            "project":projectName,
+            "logs": logs
+        }
+    else:
+        return {
+            "project":projectName,
+            "logs": "No Project Found"
+        }
 
 
 
 class JksModel(BaseModel):
     path: str
-    password: str
-    key: str
+    storePass: str
+    keyAlias: str
+    keyPass: str
 
-def getKeysData():
-    return list(
+
+def getJksModelByName(name: str):
+    list : List[JksModel] = getJksList()
+    for item in list:
+        if item.path==name:
+            return item
+
+def getJksList()-> List[JksModel]:
+    return [
         JksModel(
             path="ishfaq.jks",
-            password="",
-            key=""
+            keyAlias="ishfaq",
+            keyPass="ishfaq",
+            storePass="ishfaq"
         )
-    )
+    ]
     
+
+def getProjectName(github_url:str):
+    parts = github_url.split("/")
+    return parts[len(parts)-1]

@@ -16,7 +16,36 @@ mkdir -p $CODE_DIR $OUTPUT_DIR
 
 # Clone repository
 cd $CODE_DIR
-git clone $REPO_LINK .
+#!/bin/sh
+
+
+
+# Construct REPO_LINK with authentication if credentials are provided
+if [ -n "$BITBUCKET_USERNAME" ] && [ -n "$BITBUCKET_APP_PASSWORD" ]; then
+    # Use username and app password for authentication
+    AUTHENTICATED_REPO_LINK=$(echo "$REPO_LINK" | sed "s|https://|https://$BITBUCKET_USERNAME:$BITBUCKET_APP_PASSWORD@|")
+elif [ -n "$BITBUCKET_OAUTH_TOKEN" ]; then
+    # Use OAuth token for authentication by replacing any username with x-token-auth
+    AUTHENTICATED_REPO_LINK=$(echo "$REPO_LINK" | sed "s|https://[^@]*@|https://x-token-auth:$BITBUCKET_OAUTH_TOKEN@|")
+else
+    # Use REPO_LINK directly if no credentials are provided
+    AUTHENTICATED_REPO_LINK=$REPO_LINK
+fi
+
+# Display the authenticated repo link for debugging (ensure no sensitive data in logs)
+echo "AUTHENTICATED_REPO_LINK=$AUTHENTICATED_REPO_LINK"
+
+# Check if the user provided a branch
+if [ -n "$BRANCH_NAME" ]; then
+    echo "Pulling code from branch $BRANCH_NAME"
+    git clone -b "$BRANCH_NAME" --single-branch "$AUTHENTICATED_REPO_LINK" .
+else
+    echo "Pulling code from Git"
+    git clone "$AUTHENTICATED_REPO_LINK" .
+fi
+
+
+
 chmod +x gradlew
 # yes | sdkmanager --licenses
 

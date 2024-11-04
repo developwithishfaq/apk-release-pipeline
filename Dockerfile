@@ -37,7 +37,8 @@ ENV KEYSTORE_PASSWORD=ishfaq
 ENV KEY_PASSWORD=ishfaq
 ENV KEY_ALIAS=ishfaq
 
-ENV SCRIPT=build.sh
+# ENV SCRIPT=build_github.sh
+ENV SCRIPT=build_bitbucket.sh
 ENV REPO_LINK="https://github.com/developwithishfaq/ishfaq-test"
 
 # Create necessary directories
