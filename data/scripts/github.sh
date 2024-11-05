@@ -10,8 +10,8 @@ echo "JKS = $JKS_NAME"
 JKS_PATH="/data/jks/$JKS_NAME"
 CODE_DIR="/data/code"
 OUTPUT_DIR="/data/apks"
+mkdir -p ./jks ./scripts ./code
 
-# Ensure required directories exist
 mkdir -p $CODE_DIR $OUTPUT_DIR
 
 # Clone repository
@@ -89,15 +89,16 @@ else
 fi
 
 # Copy APK and AAB artifacts to mounted volume
+$OUTPUT_FILE_NAME
 if [ -d "app/build/outputs/apk/release" ]; then
-    cp app/build/outputs/apk/release/*.apk $OUTPUT_DIR/
+    cp app/build/outputs/apk/release/*.apk $OUTPUT_DIR/$OUTPUT_FILE_NAME.apk
     echo "APK files copied to $OUTPUT_DIR"
 else
     echo "APK output directory not found."
 fi
 
 if [ -d "app/build/outputs/bundle/release" ]; then
-    cp app/build/outputs/bundle/release/*.aab $OUTPUT_DIR/
+    cp app/build/outputs/bundle/release/*.aab $OUTPUT_DIR/$OUTPUT_FILE_NAME.aab
     echo "AAB files copied to $OUTPUT_DIR"
 else
     echo "AAB output directory not found."

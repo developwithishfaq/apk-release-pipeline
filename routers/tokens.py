@@ -7,14 +7,20 @@ app = APIRouter()
 FILE_PATH = "General/key_value_store.txt"
 
 def load_data():
-    # Load data from file if it exists, else return an empty dictionary
+    # Load data from file if it exists and is valid JSON; otherwise, return an empty dictionary
     if os.path.exists(FILE_PATH):
-        with open(FILE_PATH, 'r') as f:
-            return json.load(f)
+        try:
+            with open(FILE_PATH, 'r') as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            return {} 
+    
     return {}
 
 def save_data(data):
-    # Save the dictionary to a file
+    directory = os.path.dirname(FILE_PATH)
+    if not os.path.exists(directory):
+        os.makedirs(directory, exist_ok=True)    
     with open(FILE_PATH, 'w') as f:
         json.dump(data, f)
 
@@ -24,6 +30,7 @@ def save_key_value(key: str, value: str):
     
     # Save or update the key-value pair
     data[key] = security.encrypt_string(value)
+    print(f"Data to save:{data}")
     save_data(data)
     
     return {"message": "Key-value pair ko save kar dia gia hy.", "data": {key: value}}

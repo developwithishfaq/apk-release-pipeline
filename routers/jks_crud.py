@@ -1,6 +1,7 @@
 from fastapi import APIRouter, File, UploadFile, Query, HTTPException
 from models.models import JksModel
 import os
+from typing import List
 import json
 
 app = APIRouter()
@@ -8,6 +9,24 @@ BASE_DIR = "data/keys"  # Set your base directory path
 JKS_DATA_FILE = os.path.join("General", "jks_data_list.txt")
 
 # Helper function to read entries from file
+
+
+
+def getJsksApi()-> List[JksModel]:
+    jks = read_all_jks_entries()
+    models : List[JksModel] = []
+    for item in jks:
+        model = JksModel(
+            path=item.get("path"),
+            keyAlias=item.get("keyAlias"),
+            keyPass=item.get("keyPass"),
+            storePass=item.get("storePass"),
+        )
+        models.append(model)
+    return models
+        
+    
+
 def read_all_jks_entries():
     if os.path.exists(JKS_DATA_FILE):
         with open(JKS_DATA_FILE, "r") as file:
@@ -20,7 +39,6 @@ def save_all_jks_entries(entries):
     with open(JKS_DATA_FILE, "w") as file:
         json.dump(entries, file, indent=4)
 
-# CREATE - Upload JKS file and add entry
 @app.post("/uploadJks")
 async def upload_file(
     file: UploadFile = File(...),
@@ -31,8 +49,12 @@ async def upload_file(
     os.makedirs(BASE_DIR, exist_ok=True)
     file_path = os.path.join(BASE_DIR, file.filename)
 
-    with open(file_path, "wb") as f:
-        f.write(await file.read())
+    # Save the file only if it doesn't already exist
+    if not os.path.exists(file_path):
+        with open(file_path, "wb") as f:
+            f.write(await file.read())
+    else:
+        return {"message": f"File '{file.filename}' already exists and was not uploaded again."}
 
     jks_data = JksModel(
         path=file.filename,
@@ -41,11 +63,16 @@ async def upload_file(
         storePass=storePass
     )
 
+    # Load existing entries and check if the file already has an entry
     entries = read_all_jks_entries()
+    if any(entry['path'] == file.filename for entry in entries):
+        return {"message": f"Entry for '{file.filename}' already exists in the database."}
+
+    # Add new entry if it's unique
     entries.append(jks_data.dict())
     save_all_jks_entries(entries)
 
-    return {"message": f"File '{file.filename}' saved successfully."}
+    return {"message": f"File '{file.filename}' saved and entry added successfully."}
 
 # READ ALL - Get all JKS entries
 @app.get("/jks")

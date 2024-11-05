@@ -10,10 +10,9 @@ echo "JKS = $JKS_NAME"
 JKS_PATH="/data/jks/$JKS_NAME"
 CODE_DIR="/data/code"
 OUTPUT_DIR="/data/apks"
+mkdir -p ./jks ./scripts ./code
 
-# Ensure required directories exist
 mkdir -p $CODE_DIR $OUTPUT_DIR
-
 # Clone repository
 cd $CODE_DIR
 #!/bin/sh

@@ -20,20 +20,6 @@ def download_file(file_path: str):
     return {"error": "Mazrat file kisi nay shayd delete kar dia"}
 
 
-@router.get("/jksList")
-def getJsksApi():
-    return getJksList()
-
-def getJksList()-> List[JksModel]:
-    return [
-        JksModel(
-            path="ishfaq.jks",
-            keyAlias="ishfaq",
-            keyPass="ishfaq",
-            storePass="ishfaq"
-        )
-    ]
-
 
 
 @router.get("/results")
@@ -47,7 +33,7 @@ def list_files(request: Request,projectName:str=Query()):
             resources = []
             for file in project_dir.glob("*"):
                 if file.suffix in [".apk", ".aab"] or True:
-                    creation_time = core.getGoodTime(file.stat().st_ctime)
+                    creation_time = core.getGoodTime(core.get_creation_time(file))
                     resources.append({
                         "extension": file.suffix[1:],  # Get file extension without the dot
                         "downloadableLink": f"{base_url}download/{project_dir.name}/{file.name}",

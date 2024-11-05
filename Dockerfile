@@ -37,15 +37,15 @@ ENV KEYSTORE_PASSWORD=ishfaq
 ENV KEY_PASSWORD=ishfaq
 ENV KEY_ALIAS=ishfaq
 
-# ENV SCRIPT=build_github.sh
-ENV SCRIPT=build_bitbucket.sh
+ENV SCRIPT=github.sh
+# ENV SCRIPT=bitbucket.sh
 ENV REPO_LINK="https://github.com/developwithishfaq/ishfaq-test"
 
 # Create necessary directories
 RUN mkdir -p ./jks ./scripts ./code
 
 # Copy the keystore and script into the image
-COPY ./data/keys/$JKS_NAME ./jks/
+# COPY ./data/keys/$JKS_NAME ./jks/
 COPY ./data/scripts/$SCRIPT ./scripts/
 
 # Make the script executable

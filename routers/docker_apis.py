@@ -21,14 +21,15 @@ runningContainers : Dict[str,ContainerModel] = {}
 
 @router.post("/run")
 async def runContainer(
-    request: Request,
-    jksName:str = "",
-    repoLink:str = "",
-    branchName:str = "",
-    accessToken:str = "",
-    keyForBitBucketToken:str = "",
-    bitbuckerUserName:str = "",
-    bitbuckerAppPassword:str = ""
+        request: Request,
+        jksName:str = "",
+        repoLink:str = "",
+        branchName:str = "",
+        keyForBitBucketToken:str = "",
+        outputFileName:str = "",
+        accessTokenForGithub:str = "",
+        bitbuckerUserName:str = "",
+        bitbuckerAppPassword:str = ""
     ):
     size = len(client.containers.list())
     if size>=5:
@@ -36,12 +37,26 @@ async def runContainer(
             "message": "Sorry Already itney container chal rehay hein",
             "data" : get_containers_info()
         }
+    
+
     projectName = core.getProjectName(repoLink)
     logging.addLog(projectName,"")
+
     jksModel : JksModel = core.getJksModelByName(jksName)
+    if jksModel is None:
+        return {
+            "arey":"Sir/Mam is naam say koi jks nhi hy"
+        }
+    
+    if not outputFileName.strip():
+        fileName = projectName
+    else:
+        fileName = outputFileName
 
     host_volume_path = os.path.join(os.getcwd(), f"Apks/{projectName}")
+    jksPathOutside = os.path.join(os.getcwd(), f"data/keys")
     container_volume_path = "/data/apks"
+    jksInDockerPath = "/data/jks"
     
     try:
         if 'bitbucket.org' in repoLink:
@@ -60,7 +75,8 @@ async def runContainer(
                 "BRANCH_NAME" : branchName,
                 "BITBUCKET_USERNAME": bitbuckerUserName,
                 "BITBUCKET_APP_PASSWORD": bitbuckerAppPassword,
-                "BITBUCKET_OAUTH_TOKEN" : authToken
+                "BITBUCKET_OAUTH_TOKEN" : authToken,
+                "OUTPUT_FILE_NAME" : fileName,
             }
         else:
             imageName = "github"
@@ -71,16 +87,21 @@ async def runContainer(
                 "KEY_ALIAS" : jksModel.keyAlias,
                 "KEY_PASSWORD" : jksModel.keyPass,
                 "BRANCH_NAME" : branchName,
-                "ACCESS_TOKEN" : accessToken
+                "ACCESS_TOKEN" : accessTokenForGithub,
+                "OUTPUT_FILE_NAME" : fileName
             }
         container = client.containers.run(
             image=imageName,
             name= projectName,
             detach= True,
             environment = env,
-            volumes={
+            volumes = {
                 host_volume_path: {
                     "bind": container_volume_path,
+                    "mode": "rw"  # "rw" for read-write access; "ro" if you need it read-only
+                },
+                jksPathOutside:{
+                    "bind": jksInDockerPath,
                     "mode": "rw"  # "rw" for read-write access; "ro" if you need it read-only
                 }
             }
@@ -94,16 +115,22 @@ async def runContainer(
         threading.Thread(target=consume_logs, args=(container_id,projectName), daemon=True).start()
         return {
             "paigham" : "container chal para, ab intezar karo ap bas",
-            "hitForLogs" : f"{request.base_url}logs?projectName={projectName}",
+            "logsDekhain" : f"{request.base_url}logs?projectName={projectName}",
+            "resultsDekhain" : f"{request.base_url}results?projectName={projectName}",
             "id" : container.id
         }
     except Exception as e:
-        return {
-            "error" : str(e)
-        }
+        if "409" in f"{e}":
+            return {
+                "Sir/Mam" : "ye container to pehlay say chal reha hy, dubara zehmat q kar rehay hein ap?"
+            }
+        else:
+            return {
+                "error" : str(e)
+            }
 
 @router.get("/containers")
-def get_containers_info():
+def get_containers_info(request : Request):
     client = docker.from_env()  # Connect to Docker client
     containers = client.containers.list(all=True)  # List all containers (including stopped, paused, etc.)
     
@@ -121,9 +148,11 @@ def get_containers_info():
         container_info.append({
             "naam": container.name,
             "shanakht": container.id,
-            "qadmon_k_nishan": logs,
             "shruwati_waqt": formatted_start_time,  # Use formatted time
-            "haalat": status  # Add status of the container
+            "haalat": status  ,# Add status of the container
+            "logsDekhain":f"{request.base_url}logs?projectName={container.name}",
+            "resultsDekhain":f"{request.base_url}results?projectName={container.name}",
+            "qadmon_k_nishan": logs,
         })
     
     return container_info
