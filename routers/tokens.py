@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 import json
 import os
+from helpers import security
 
 app = APIRouter()
 FILE_PATH = "General/key_value_store.txt"
@@ -22,10 +23,10 @@ def save_key_value(key: str, value: str):
     data = load_data()
     
     # Save or update the key-value pair
-    data[key] = value
+    data[key] = security.encrypt_string(value)
     save_data(data)
     
-    return {"message": "Key-value pair saved successfully", "data": {key: value}}
+    return {"message": "Key-value pair ko save kar dia gia hy.", "data": {key: value}}
 
 @app.delete("/deleteKey")
 def delete_key(key: str):
@@ -40,20 +41,20 @@ def delete_key(key: str):
     
     return {"message": f"Key '{key}' deleted successfully"}
 
-@app.get("/getKey")
+
 def get_value(key: str):
     data = load_data()
     
     if key not in data:
-        raise HTTPException(status_code=404, detail="Key not found")
-    
-    return {"key": key, "value": data[key]}
+        return key
+    else:
+        return security.decrypt_string(data[key])
 
 @app.get("/getAllKeys")
 def get_all_keys():
     data = load_data()
     
     # Convert the dictionary to a list of dictionaries in the required format
-    all_keys = [{"key": k, "value": v} for k, v in data.items()]
+    all_keys = [{"key": k, "value": ""} for k, v in data.items()]
     
     return all_keys

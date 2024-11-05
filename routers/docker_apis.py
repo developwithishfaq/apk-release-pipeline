@@ -20,49 +20,58 @@ router = APIRouter()
 runningContainers : Dict[str,ContainerModel] = {}
 
 @router.post("/run")
-async def runContainer(request: Request,model: CreateBuildRequest):
+async def runContainer(
+    request: Request,
+    jksName:str = "",
+    repoLink:str = "",
+    branchName:str = "",
+    accessToken:str = "",
+    keyForBitBucketToken:str = "",
+    bitbuckerUserName:str = "",
+    bitbuckerAppPassword:str = ""
+    ):
     size = len(client.containers.list())
     if size>=5:
         return {
             "message": "Sorry Already itney container chal rehay hein",
             "data" : get_containers_info()
         }
-    projectName = core.getProjectName(model.repoLink)
+    projectName = core.getProjectName(repoLink)
     logging.addLog(projectName,"")
-    jksModel : JksModel = core.getJksModelByName(model.jksName)
+    jksModel : JksModel = core.getJksModelByName(jksName)
 
     host_volume_path = os.path.join(os.getcwd(), f"Apks/{projectName}")
     container_volume_path = "/data/apks"
     
-    value = tokens.get_value(model.keyForBitBucketToken)["value"]
-    if value is None:
-        authToken = model.keyForBitBucketToken
-    else:
-        authToken = value
     try:
-        if 'bitbucket.org' in model.repoLink:
-            imageName = "bitbucket"
+        if 'bitbucket.org' in repoLink:
+            imageName = "bitbucket"        
+            value = tokens.get_value(keyForBitBucketToken)
+            if value is None:
+                authToken = keyForBitBucketToken
+            else:
+                authToken = value
             env = {
-                "REPO_LINK" : model.repoLink,
+                "REPO_LINK" : repoLink,
                 "JKS_NAME" : jksModel.path,
                 "KEYSTORE_PASSWORD" : jksModel.storePass,
                 "KEY_ALIAS" : jksModel.keyAlias,
                 "KEY_PASSWORD" : jksModel.keyPass,
-                "BRANCH_NAME" : model.branchName,
-                "BITBUCKET_USERNAME": model.bitbuckerUserName,
-                "BITBUCKET_APP_PASSWORD": model.bitbuckerAppPassword,
+                "BRANCH_NAME" : branchName,
+                "BITBUCKET_USERNAME": bitbuckerUserName,
+                "BITBUCKET_APP_PASSWORD": bitbuckerAppPassword,
                 "BITBUCKET_OAUTH_TOKEN" : authToken
             }
         else:
             imageName = "github"
             env = {
-                "REPO_LINK" : model.repoLink,
+                "REPO_LINK" : repoLink,
                 "JKS_NAME" : jksModel.path,
                 "KEYSTORE_PASSWORD" : jksModel.storePass,
                 "KEY_ALIAS" : jksModel.keyAlias,
                 "KEY_PASSWORD" : jksModel.keyPass,
-                "BRANCH_NAME" : model.branchName,
-                "ACCESS_TOKEN" : model.accessToken
+                "BRANCH_NAME" : branchName,
+                "ACCESS_TOKEN" : accessToken
             }
         container = client.containers.run(
             image=imageName,

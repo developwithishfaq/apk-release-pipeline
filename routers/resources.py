@@ -14,10 +14,15 @@ router = APIRouter()
 
 @router.get("/download/{file_path:path}")
 def download_file(file_path: str):
-    file = Path("apks") / file_path
+    file = Path("Apks") / file_path
     if file.exists():
         return FileResponse(file)
     return {"error": "Mazrat file kisi nay shayd delete kar dia"}
+
+
+@router.get("/jksList")
+def getJsksApi():
+    return getJksList()
 
 def getJksList()-> List[JksModel]:
     return [
@@ -33,7 +38,7 @@ def getJksList()-> List[JksModel]:
 
 @router.get("/results")
 def list_files(request: Request,projectName:str=Query()):
-    root_dir = Path("apks")
+    root_dir = Path("Apks")
     base_url = request.base_url  # Capture the base URL (e.g., "http://127.0.0.1:8000/")
     projects = []
 
